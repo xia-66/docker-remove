@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # ==============================================================================
-# Docker 完全卸载脚本
+# Docker & Docker Compose 完全卸载脚本
 #
 # 描述:
-#   该脚本用于在 Linux 系统上彻底卸载 Docker 引擎、CLI、containerd
-#   以及相关的插件。它会停止所有正在运行的容器，删除所有 Docker
+#   该脚本用于在 Linux 系统上彻底卸载 Docker 引擎、CLI、containerd、
+#   Docker Compose 以及相关的插件。它会停止所有正在运行的容器，删除所有
 #   相关的软件包，并清除所有 Docker 数据，包括镜像、容器、卷和网络配置。
 #
 # 支持的系统:
@@ -34,7 +34,7 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-echo -e "${COLOR_YELLOW}开始执行 Docker 卸载流程...${COLOR_NC}"
+echo -e "${COLOR_YELLOW}开始执行 Docker 和 Docker Compose 卸载流程...${COLOR_NC}"
 echo "----------------------------------------------------"
 
 # --- 步骤 1: 停止所有正在运行的容器并停止 Docker 服务 ---
@@ -64,25 +64,25 @@ else
 fi
 echo -e "${COLOR_GREEN}完成。${COLOR_NC}\n"
 
-# --- 步骤 2: 卸载 Docker 相关的软件包 ---
-echo "[步骤 2/5] 卸载 Docker 相关的软件包..."
+# --- 步骤 2: 卸载 Docker 和 Docker Compose 相关的软件包 ---
+echo "[步骤 2/5] 卸载 Docker 和 Docker Compose 相关的软件包..."
 
 # 检测包管理器
 if command -v apt-get &> /dev/null; then
     echo "检测到 apt 包管理器 (Debian/Ubuntu)..."
-    apt-get purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras
+    apt-get purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras docker-compose
     apt-get autoremove -y --purge
     echo "使用 apt 卸载软件包完成。"
 elif command -v dnf &> /dev/null; then
     echo "检测到 dnf 包管理器 (CentOS/RHEL/Fedora)..."
-    dnf remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    dnf remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-compose
     echo "使用 dnf 卸载软件包完成。"
 elif command -v yum &> /dev/null; then
     echo "检测到 yum 包管理器 (CentOS/RHEL)..."
-    yum remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    yum remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-compose
     echo "使用 yum 卸载软件包完成。"
 else
-    echo -e "${COLOR_RED}错误: 未能识别系统的包管理器 (apt, dnf, yum)。请手动卸载 Docker 软件包。${COLOR_NC}"
+    echo -e "${COLOR_RED}错误: 未能识别系统的包管理器 (apt, dnf, yum)。请手动卸载软件包。${COLOR_NC}"
     exit 1
 fi
 echo -e "${COLOR_GREEN}完成。${COLOR_NC}\n"
@@ -112,22 +112,38 @@ else
 fi
 echo ""
 
-# --- 步骤 4: 清理其他残留配置文件 ---
-echo "[步骤 4/5] 清理其他残留的配置文件..."
+# --- 步骤 4: 清理其他残留配置文件和二进制文件 ---
+echo "[步骤 4/5] 清理其他残留的配置文件和二进制文件..."
 rm -rf /etc/docker
 rm -f /etc/apparmor.d/docker
 rm -rf /run/docker
+
+echo "正在检查并删除手动安装的 Docker Compose..."
+rm -f /usr/local/bin/docker-compose
+rm -f /usr/bin/docker-compose
+
 echo -e "${COLOR_GREEN}完成。${COLOR_NC}\n"
 
 # --- 步骤 5: 验证卸载 ---
 echo "[步骤 5/5] 验证卸载结果..."
+VERIFICATION_FAILED=false
+
 if command -v docker &> /dev/null; then
-    echo -e "${COLOR_RED}验证失败: 'docker' 命令仍然存在。卸载可能未完全成功。${COLOR_NC}"
-else
-    echo -e "${COLOR_GREEN}验证成功: 'docker' 命令已不存在。${COLOR_NC}"
+    echo -e "${COLOR_RED}验证失败: 'docker' 命令仍然存在。${COLOR_NC}"
+    VERIFICATION_FAILED=true
 fi
+
+if command -v docker-compose &> /dev/null; then
+    echo -e "${COLOR_RED}验证失败: 'docker-compose' 命令仍然存在。${COLOR_NC}"
+    VERIFICATION_FAILED=true
+fi
+
+if [ "$VERIFICATION_FAILED" = false ]; then
+    echo -e "${COLOR_GREEN}验证成功: 'docker' 和 'docker-compose' 命令均已不存在。${COLOR_NC}"
+fi
+
 echo "----------------------------------------------------"
-echo -e "${COLOR_GREEN}Docker 卸载流程执行完毕！${COLOR_NC}"
+echo -e "${COLOR_GREEN}Docker 和 Docker Compose 卸载流程执行完毕！${COLOR_NC}"
 echo "建议重启系统以确保所有变更生效。"
 
 exit 0
